@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Attendance</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<style>
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f4f6f8;
+        color: #333;
+        line-height: 1.6;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2rem;
+        min-height: 100vh;
+        margin: 0;
+        box-sizing: border-box;
+    }
+
+    .container {
+        background-color: #fff;
+        padding: 2rem;
+        border-radius: 0.75rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        width: 100%;
+        max-width: 960px;
+        /* Increased max width */
+        margin-top: 3rem;
+    }
+
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+
+    .header h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #2d3748;
+    }
+
+    .back-button {
+        background-color: #dc2626;
+        color: #fff;
+        font-weight: 500;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        text-decoration: none;
+        transition: background-color 0.15s ease-in-out;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    }
+
+    .back-button:hover {
+        background-color: #b91c1c;
+    }
+
+    .filter-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .filter-label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #4a5568;
+        margin-bottom: 0.5rem;
+    }
+
+    .filter-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        font-size: 1rem;
+        color: #374151;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+
+    .filter-input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+    }
+
+    .fetch-button {
+        background-color: #667eea;
+        color: #fff;
+        font-weight: 600;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    }
+
+    .fetch-button:hover {
+        background-color: #5a67d8;
+    }
+
+    .fetch-button:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+    }
+
+    .save-load-group {
+        margin-top: 2rem;
+        display: flex;
+        align-items: center;
+    }
+
+    .save-button {
+        background-color: #38a169;
+        color: #fff;
+        font-weight: 500;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+        margin-right: 1rem;
+    }
+
+    .save-button:hover {
+        background-color: #2f855a;
+    }
+
+    .save-button:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(56, 161, 105, 0.3);
+    }
+
+    .load-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #4a5568;
+        margin-right: 0.5rem;
+    }
+
+    .load-select {
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        font-size: 1rem;
+        color: #374151;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        margin-right: 1rem;
+    }
+
+    .load-select:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+    }
+
+    .load-button {
+        background-color: #667eea;
+        color: #fff;
+        font-weight: 500;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    }
+
+    .load-button:hover {
+        background-color: #5a67d8;
+    }
+
+    .load-button:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+    }
+
+    #filtered-student-list {
+        margin-top: 2rem;
+        display: none;
+    }
+
+    #filtered-student-list h2 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 1rem;
+    }
+
+    #no-filtered-students {
+        color: #718096;
+        text-align: center;
+        padding: 1rem;
+        border: 1px solid #e0e6ed;
+        border-radius: 0.375rem;
+        background-color: #f9f9f9;
+    }
+
+    #attendance-container {
+        overflow-x: auto;
+        /* Enable horizontal scrolling */
+    }
+
+    #filtered-attendance-table {
+        width: fit-content;
+        /* Make table width fit its content */
+        border-collapse: collapse;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border-radius: 0.5rem;
+        overflow: hidden;
+        border: 1px solid #e0e6ed;
+    }
+
+    #filtered-attendance-table thead {
+        background-color: #f7fafc;
+        white-space: nowrap;
+        /* Prevent header from wrapping */
+    }
+
+    #filtered-attendance-table th {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        font-weight: 500;
+        color: #4a5568;
+        border-bottom: 2px solid #edf2f7;
+    }
+
+    #filtered-attendance-table th:first-child,
+    #filtered-attendance-table th:nth-child(2) {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        background-color: #f7fafc;
+    }
+
+    #filtered-attendance-table tbody tr:nth-child(even) {
+        background-color: #f9fafb;
+    }
+
+    #filtered-attendance-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #edf2f7;
+        color: #374151;
+        white-space: nowrap;
+        /* Prevent content from wrapping */
+    }
+
+    #filtered-attendance-table td:first-child,
+    #filtered-attendance-table td:nth-child(2) {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        background-color: #fff;
+    }
+
+    #filtered-attendance-table tbody tr:nth-child(even) td:first-child,
+    #filtered-attendance-table tbody tr:nth-child(even) td:nth-child(2) {
+        background-color: #f9fafb;
+    }
+
+    #filtered-attendance-table .attendance-col {
+        text-align: center;
+    }
+</style>
+
+<body class="bg-gray-100">
+    <div class="container max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6 mt-10">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-semibold text-gray-800">View Attendance</h1>
+            <button class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+                onclick="goback()">Back</button>
+        </div>
+        <div class="mb-4">
+            <label for="filter-department" class="block text-gray-700 text-sm font-bold mb-2">Filter by
+                Department:</label>
+            <input type="text" id="filter-department"
+                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                placeholder="Enter Department (e.g., CSE)">
+        </div>
+        <div class="mb-4">
+            <label for="filter-semester" class="block text-gray-700 text-sm font-bold mb-2">Filter by Semester:</label>
+            <input type="text" id="filter-semester"
+                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                placeholder="Enter Semester (e.g., 3)">
+        </div>
+        <button id="fetch-filtered-students-button"
+            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+            onclick="fetchFilteredStudents()">Fetch Students</button>
+
+        <div class="mt-4">
+            <button id="saveAttendanceTableButton"
+                class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline mr-2"
+                onclick="saveCurrentAttendanceTable()">Save Table</button>
+            <label for="savedAttendanceSelector" class="text-gray-700 text-sm font-bold mr-2">View Saved:</label>
+            <select id="savedAttendanceSelector"
+                class="shadow border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                <option value="">-- Select Saved --</option>
+            </select>
+            <button id="loadSavedAttendanceButton"
+                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline ml-2"
+                onclick="loadSavedAttendance()">Load Saved</button>
+        </div>
+
+        <div id="filtered-student-list" class="mt-6" style="display: none;">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Student Attendance</h2>
+            <div id="no-filtered-students" class="text-gray-500 text-center py-4">No students found with the applied
+                filters.</div>
+            <div id="attendance-container">
+                <table id="filtered-attendance-table" class="shadow-md rounded-md">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="py-2 px-4 text-left font-semibold text-gray-700">Name</th>
+                            <th class="py-2 px-4 text-left font-semibold text-gray-700">Enrollment</th>
+                            <th id="attendance-dates-header" class="py-2 px-4 text-center font-semibold text-gray-700"
+                                colspan="0"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="filtered-attendance-table-body">
+                    </tbody>
+                </table>
+            </div>
+            <button id="downloadPdfButton"
+                class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline mt-4"
+                onclick="downloadAttendancePdf()">Download PDF</button>
+        </div>
+        <div id="message-box"
+            class="fixed top-8 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded shadow-md text-white font-semibold"
+            style="display: none;"></div>
+    </div>
+    <script>
+        const supabaseUrl = 'https://varqdvyrqtcjvjfygruy.supabase.co';  // Replace with your Supabase URL
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhcnFkdnlycXRjanZqZnlncnV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzNTg0MDYsImV4cCI6MjA2MDkzNDQwNn0.HpAo6ZAiNIcjq1OSHRHknkv4kT1-3k5tAI9X9se-dCI';
+
+        const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+        const filterDepartmentInput = document.getElementById('filter-department');
+        const filterSemesterInput = document.getElementById('filter-semester');
+        const fetchFilteredStudentsButton = document.getElementById('fetch-filtered-students-button');
+        const filteredStudentListDiv = document.getElementById('filtered-student-list');
+        const noFilteredStudentsDiv = document.getElementById('no-filtered-students');
+        const filteredAttendanceTable = document.getElementById('filtered-attendance-table');
+        const filteredAttendanceTableBody = document.getElementById('filtered-attendance-table-body');
+        const attendanceDatesHeader = document.getElementById('attendance-dates-header');
+        const messageBox = document.getElementById('message-box');
+        const saveAttendanceTableButton = document.getElementById('saveAttendanceTableButton');
+        const savedAttendanceSelector = document.getElementById('savedAttendanceSelector');
+        const loadSavedAttendanceButton = document.getElementById('loadSavedAttendanceButton');
+        const SAVED_ATTENDANCE_KEY = 'savedAttendanceData';
+        let currentFetchedStudents = []; // Store the fetched students with their data
+
+        function goback() {
+            window.location.href = 'dashboard.html';
+        }
+
+        function showMessage(message, type = 'success') {
+            messageBox.textContent = message;
+            messageBox.className = `fixed top-8 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded shadow-md text-white font-semibold bg-${type === 'success' ? 'green' : 'red'}-500`;
+            messageBox.style.display = 'block';
+            setTimeout(() => {
+                messageBox.style.display = 'none';
+            }, 3000);
+        }
+
+        async function fetchFilteredStudents() {
+            const department = filterDepartmentInput.value.trim().toUpperCase();
+            const semester = filterSemesterInput.value.trim();
+
+            filteredStudentListDiv.style.display = 'none';
+            noFilteredStudentsDiv.style.display = 'none';
+            filteredAttendanceTableBody.innerHTML = '';
+            attendanceDatesHeader.setAttribute('colspan', 0);
+            attendanceDatesHeader.textContent = '';
+            currentFetchedStudents = []; // Clear previous fetched data
+
+            if (!department || !semester) {
+                showMessage('Please enter both department and semester to filter.', 'error');
+                return;
+            }
+
+            const { data, error } = await supabaseClient
+                .from('students_data')
+                .select('name, enrollment, date_status_pairs')
+                .eq('department', department)
+                .eq('semester', semester);
+
+            if (error) {
+                showMessage(`Error fetching students: ${error.message}`, 'error');
+                console.error("Error fetching students:", error);
+                return;
+            }
+
+            if (data && data.length > 0) {
+                currentFetchedStudents = data; // Store the fetched data
+                filteredStudentListDiv.style.display = 'block';
+                noFilteredStudentsDiv.style.display = 'none';
+                displayFilteredAttendance(data);
+            } else {
+                filteredStudentListDiv.style.display = 'none';
+                noFilteredStudentsDiv.style.display = 'block';
+                showMessage('No students found with the specified filters.', 'info');
+            }
+        }
+
+        function displayFilteredAttendance(students) {
+            const allDates = new Set();
+            students.forEach(student => {
+                if (student.date_status_pairs) {
+                    Object.keys(student.date_status_pairs).forEach(date => allDates.add(date));
+                }
+            });
+
+            const sortedDates = Array.from(allDates).sort();
+            const numDates = sortedDates.length;
+            attendanceDatesHeader.setAttribute('colspan', numDates);
+            attendanceDatesHeader.textContent = sortedDates.join(' ');
+
+            filteredAttendanceTableBody.innerHTML = '';
+            students.forEach(student => {
+                const row = filteredAttendanceTableBody.insertRow();
+                const nameCell = row.insertCell();
+                const enrollmentCell = row.insertCell();
+
+                nameCell.classList.add('py-2', 'px-4', 'border-b', 'text-gray-800');
+                enrollmentCell.classList.add('py-2', 'px-4', 'border-b', 'text-gray-800');
+                nameCell.textContent = student.name;
+                enrollmentCell.textContent = student.enrollment;
+
+                sortedDates.forEach(date => {
+                    const attendanceCell = row.insertCell();
+                    attendanceCell.classList.add('py-2', 'px-4', 'border-b', 'text-center', 'text-gray-700', 'attendance-col');
+                    attendanceCell.textContent = student.date_status_pairs && student.date_status_pairs[date] ? student.date_status_pairs[date].toUpperCase() : '-';
+                });
+            });
+        }
+
+        function saveCurrentAttendanceTable() {
+            const department = filterDepartmentInput.value.trim().toUpperCase();
+            const semester = filterSemesterInput.value.trim();
+
+            if (!department || !semester) {
+                showMessage('Please enter both department and semester to save.', 'error');
+                return;
+            }
+
+            const saveData = {
+                department: department,
+                semester: semester,
+                studentsData: currentFetchedStudents.map(student => ({
+                    name: student.name,
+                    enrollment: student.enrollment,
+                    attendance: student.date_status_pairs || {}
+                })),
+            };
+
+            let savedAttendance = JSON.parse(localStorage.getItem(SAVED_ATTENDANCE_KEY)) || {};
+            const saveKey = `${department}-${semester}`;
+            savedAttendance[saveKey] = saveData;
+            localStorage.setItem(SAVED_ATTENDANCE_KEY, JSON.stringify(savedAttendance));
+            populateSavedAttendanceSelector();
+            showMessage(`Attendance for ${department} Semester ${semester} saved.`, 'success');
+        }
+
+        function populateSavedAttendanceSelector() {
+            savedAttendanceSelector.innerHTML = '<option value="">-- Select Saved --</option>';
+            const savedAttendance = JSON.parse(localStorage.getItem(SAVED_ATTENDANCE_KEY)) || {};
+            Object.keys(savedAttendance).forEach(key => {
+                const option = document.createElement('option');
+                option.value = key;
+                const [dept, sem] = key.split('-');
+                option.textContent = `${dept} - Semester ${sem}`;
+                savedAttendanceSelector.appendChild(option);
+            });
+        }
+
+        function loadSavedAttendance() {
+            const selectedKey = savedAttendanceSelector.value;
+            if (selectedKey) {
+                const savedAttendance = JSON.parse(localStorage.getItem(SAVED_ATTENDANCE_KEY)) || {};
+                const dataToLoad = savedAttendance[selectedKey];
+                if (dataToLoad) {
+                    filterDepartmentInput.value = dataToLoad.department || '';
+                    filterSemesterInput.value = dataToLoad.semester || '';
+                    filteredStudentListDiv.style.display = 'block';
+                    noFilteredStudentsDiv.style.display = 'none';
+
+                    const studentsToShow = dataToLoad.studentsData;
+                    const allDates = new Set();
+                    studentsToShow.forEach(student => {
+                        Object.keys(student.attendance).forEach(date => allDates.add(date));
+                    });
+                    const sortedDates = Array.from(allDates).sort();
+                    const numDates = sortedDates.length;
+                    attendanceDatesHeader.setAttribute('colspan', numDates);
+                    attendanceDatesHeader.textContent = sortedDates.join(' ');
+
+                    filteredAttendanceTableBody.innerHTML = '';
+                    studentsToShow.forEach(student => {
+                        const row = filteredAttendanceTableBody.insertRow();
+                        const nameCell = row.insertCell();
+                        const enrollmentCell = row.insertCell();
+                        nameCell.classList.add('py-2', 'px-4', 'border-b', 'text-gray-800');
+                        enrollmentCell.classList.add('py-2', 'px-4', 'border-b', 'text-gray-800');
+                        nameCell.textContent = student.name;
+                        enrollmentCell.textContent = student.enrollment;
+
+                        sortedDates.forEach(date => {
+                            const attendanceCell = row.insertCell();
+                            attendanceCell.classList.add('py-2', 'px-4', 'border-b', 'text-center', 'text-gray-700', 'attendance-col');
+                            attendanceCell.textContent = student.attendance[date] ? student.attendance[date].toUpperCase() : '-';
+                        });
+                    });
+
+                    showMessage(`Loaded attendance for ${dataToLoad.department} Semester ${dataToLoad.semester}.`, 'success');
+                } else {
+                    showMessage('Error loading saved attendance.', 'error');
+                }
+            } else {
+                showMessage('Please select a saved attendance to load.', 'warning');
+            }
+        }
+
+
+
+        function downloadAttendancePdf() {
+            if (!currentFetchedStudents || currentFetchedStudents.length === 0) {
+                showMessage('No attendance data to download.', 'warning');
+                return;
+            }
+
+            const department = filterDepartmentInput.value.trim().toUpperCase();
+            const semester = filterSemesterInput.value.trim();
+            const filename = `attendance_${department}_sem_${semester}.pdf`;
+
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('portrait'); // Switch to portrait orientation
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const margin = 10;
+            let yPosition = margin + 10;
+            const lineHeight = 5;
+            const nameEnrollWidth = 40;
+            const dateWidth = 20;
+
+            const allDates = new Set();
+            currentFetchedStudents.forEach(student => {
+                if (student.date_status_pairs) {
+                    Object.keys(student.date_status_pairs).forEach(date => allDates.add(date));
+                }
+            });
+            const sortedDates = Array.from(allDates).sort();
+
+            pdf.setFontSize(10);
+            pdf.text('Department:', margin, yPosition);
+            pdf.text(department, margin + 25, yPosition);
+            yPosition += lineHeight + 2;
+            pdf.text('Semester:', margin, yPosition);
+            pdf.text(semester, margin + 25, yPosition);
+            yPosition += lineHeight + 5;
+            // pdf.line(margin, yPosition - 2, pageWidth - margin, yPosition - 2); // REMOVED THE LINE
+
+            currentFetchedStudents.forEach(student => {
+                pdf.setFontSize(10);
+                pdf.text(`Name: ${student.name}`, margin, yPosition);
+                yPosition += lineHeight + 1;
+                pdf.text(`Enrollment: ${student.enrollment}`, margin, yPosition);
+                yPosition += lineHeight + 3;
+                pdf.setFontSize(9);
+
+                sortedDates.forEach(date => {
+                    const status = student.date_status_pairs && student.date_status_pairs[date] ? student.date_status_pairs[date].toUpperCase() : '-';
+                    pdf.text(`${date}: ${status}`, margin + 10, yPosition);
+                    yPosition += lineHeight + 1;
+                    if (yPosition > pdf.internal.pageSize.getHeight() - margin - 10) {
+                        pdf.addPage('portrait');
+                        yPosition = margin + 10;
+                        pdf.setFontSize(10);
+                        pdf.text(`Name: ${student.name}`, margin, yPosition);
+                        yPosition += lineHeight + 1;
+                        pdf.text(`Enrollment: ${student.enrollment}`, margin, yPosition);
+                        yPosition += lineHeight + 3;
+                        pdf.setFontSize(9);
+                    }
+                });
+                // pdf.line(margin, yPosition - 2, pageWidth - margin, yPosition - 2); // REMOVED THE LINE
+                yPosition += 5; // Add some space between students
+                if (yPosition > pdf.internal.pageSize.getHeight() - margin - 10) {
+                    pdf.addPage('portrait');
+                    yPosition = margin + 10;
+                }
+            });
+
+            pdf.save(filename);
+        }
+
+
+        // Populate the saved attendance dropdown on page load
+        populateSavedAttendanceSelector();
+    </script>
+</body>
+
+</html>

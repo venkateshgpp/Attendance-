@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width-device-width, initial-scale=1.0">
+    <title>Mark Attendance</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://unpkg.com/@tailwindcss/browser@latest">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+        integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f6f8;
+            /* Light grey background */
+            color: #333;
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            min-height: 100vh;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            /* Rounded corners */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            /* Subtle shadow */
+            width: 100%;
+            max-width: 768px;
+            /* Increased max width for better readability */
+            margin-bottom: 2rem;
+        }
+
+        .title {
+            text-align: center;
+            font-size: 1.75rem;
+            /* Larger title */
+            font-weight: 700;
+            /* Bold title */
+            margin-bottom: 1.5rem;
+            color: #2d3748;
+            /* Dark grey title */
+        }
+
+        .calendar {
+            width: 100%;
+            border-collapse: collapse;
+            border-spacing: 0;
+            margin: 1.5rem auto;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e0e6ed;
+            /* Light border */
+        }
+
+        .calendar-header {
+            background-color: #4a5568;
+            /* Dark grey header */
+            color: #fff;
+            padding: 1rem;
+            text-align: center;
+            font-weight: 600;
+            font-size: 1.125rem;
+        }
+
+        .calendar-weekdays th {
+            padding: 0.75rem;
+            text-align: center;
+            font-weight: 500;
+            color: #718096;
+            /* Medium grey weekdays */
+            background-color: #edf2f7;
+            /* Light grey background for weekdays */
+            border-bottom: 1px solid #e0e6ed;
+        }
+
+        .calendar-days td {
+            padding: 0.75rem;
+            text-align: center;
+            border-bottom: 1px solid #f0f0f0;
+            border-right: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out;
+        }
+
+        .calendar-days td:hover {
+            background-color: #f7fafc;
+            color: #4a5568;
+        }
+
+        .calendar-days td.selected {
+            background-color: #667eea;
+            /* Indigo for selected */
+            color: #fff;
+            font-weight: 600;
+            border-radius: 0.375rem;
+        }
+
+        .calendar-days td.disabled {
+            color: #a0aec0;
+            /* Light grey for disabled */
+            cursor: not-allowed;
+            background-color: #f9f9f9;
+        }
+
+        .attendance-options {
+            display: flex;
+            justify-content: center;
+            margin-top: 1.5rem;
+        }
+
+        .attendance-options button {
+            padding: 0.75rem 1.25rem;
+            margin: 0 0.5rem;
+            border-radius: 0.375rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+            border: none;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .attendance-options button:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
+            /* Focus ring */
+        }
+
+        .attendance-options button.present {
+            background-color: #38a169;
+            /* Green for present */
+            color: #fff;
+        }
+
+        .attendance-options button.present:hover {
+            background-color: #2f855a;
+        }
+
+        .attendance-options button.absent {
+            background-color: #e53e3e;
+            /* Red for absent */
+            color: #fff;
+        }
+
+        .attendance-options button.absent:hover {
+            background-color: #c53030;
+        }
+
+        .student-list {
+            margin-top: 2rem;
+            border: 1px solid #e0e6ed;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+            display: none;
+        }
+
+        .student-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f0f0f0;
+            min-width: 320px;
+        }
+
+        .student-list-item:last-child {
+            border-bottom: none;
+        }
+
+        .student-name {
+            font-weight: 500;
+            color: #2d3748;
+            margin-right: auto;
+            min-width: 180px;
+        }
+
+        .attendance-status {
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .marked {
+            color: #2d3748;
+        }
+
+        .save-attendance-btn {
+            margin-top: 2rem;
+            padding: 1rem 1.5rem;
+            background-color: #667eea;
+            /* Indigo for save */
+            color: #fff;
+            font-weight: 600;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            transition: background-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+            border: none;
+            width: 100%;
+            font-size: 1.125rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+
+        .save-attendance-btn:hover {
+            background-color: #5a67d8;
+        }
+
+        .save-attendance-btn:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.5);
+        }
+
+        #message-box {
+            position: fixed;
+            top: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #f0fff4;
+            color: #2f855a;
+            padding: 1rem 1.5rem;
+            border-radius: 0.375rem;
+            border: 1px solid #9ae6b4;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+        }
+
+        #message-box.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        #message-box.error {
+            background-color: #ffe6e6;
+            color: #e53e3e;
+            border-color: #fc8181;
+        }
+
+        .attendance-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1.5rem;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e0e6ed;
+            display: none;
+        }
+
+        .attendance-table thead th {
+            background-color: #4a5568;
+            color: #fff;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #cbd5e0;
+        }
+
+        .attendance-table tbody tr:nth-child(even) {
+            background-color: #f7fafc;
+        }
+
+        .attendance-table tbody td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #edf2f7;
+        }
+
+        .attendance-table tbody td:last-child {
+            text-align: center;
+        }
+
+        .attendance-table .student-name {
+            font-weight: 500;
+            color: #2d3748;
+        }
+
+        .attendance-table input[type="checkbox"] {
+            margin: 0;
+            cursor: pointer;
+            width: 1rem;
+            height: 1rem;
+        }
+
+        .attendance-table input[type="checkbox"]:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.5);
+        }
+
+        #fetch-students-button {
+            margin-top: 1.5rem;
+            padding: 1rem 1.5rem;
+            background-color: #667eea;
+            color: #fff;
+            font-weight: 600;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            transition: background-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+            border: none;
+            width: 100%;
+            font-size: 1.125rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        #fetch-students-button:hover {
+            background-color: #5a67d8;
+        }
+
+        #fetch-students-button:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.5);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container max-w-3xl bg-white rounded-lg shadow-md p-6">
+        <h1 class="text-2xl font-semibold text-gray-800 mb-4">Mark Attendance</h1>
+        <button
+            style="background-color: #ef4444; color: #ffffff; font-weight: bold; padding-top: 0.5rem; padding-bottom: 0.5rem; padding-left: 1rem; padding-right: 1rem; border-radius: 0.25rem; cursor: pointer;"
+            onmouseover="this.style.backgroundColor='#b91c1c';" onmouseout="this.style.backgroundColor='#ef4444';"
+            onclick="goback()">Back</button>
+        <div class="mb-4">
+            <label for="department" class="block text-gray-700 text-sm font-bold mb-2">Department:</label>
+            <input type="text" id="department"
+                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                placeholder="Enter Department (e.g., CSE)">
+        </div>
+        <div class="mb-4">
+            <label for="semester" class="block text-gray-700 text-sm font-bold mb-2">Semester:</label>
+            <input type="text" id="semester"
+                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                placeholder="Enter Semester (e.g., 3)">
+        </div>
+        <button id="fetch-students-button" onclick="fetchStudents()">Fetch Students</button>
+        <div class="mb-4">
+            <label for="date" class="block text-gray-700 text-sm font-bold mb-2" style="display: none;">Date:</label>
+            <div id="calendar" class="calendar" style="display: none;">
+                <div class="calendar-header">
+                    <button id="prev-month">&lt;</button>
+                    <span id="month-name">Month</span> <span id="year">Year</span>
+                    <button id="next-month">&gt;</button>
+                </div>
+                <table class="calendar-weekdays">
+                    <thead>
+                        <tr>
+                            <th>Sun</th>
+                            <th>Mon</th>
+                            <th>Tue</th>
+                            <th>Wed</th>
+                            <th>Thu</th>
+                            <th>Fri</th>
+                            <th>Sat</th>
+                        </tr>
+                    </thead>
+                </table>
+                <table class="calendar-days">
+                    <tbody>
+                        <tr>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div id="student-list" class="student-list">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Student List</h2>
+            <div id="no-students" class="text-gray-500 text-center py-4">No students found.</div>
+            <table id="attendance-table" class="attendance-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Enrollment</th>
+                        <th>Present/Absent/None</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+        <button class="save-attendance-btn" onclick="saveAttendance()" style="display: none;">Save Attendance</button>
+        <div id="message-box" class=""></div>
+    </div>
+    <script>
+        function goback() {
+            window.location.href = 'dashboard.html';
+        }
+        const supabaseUrl = 'https://varqdvyrqtcjvjfygruy.supabase.co';  // Replace with your Supabase URL
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhcnFkdnlycXRjanZqZnlncnV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzNTg0MDYsImV4cCI6MjA2MDkzNDQwNn0.HpAo6ZAiNIcjq1OSHRHknkv4kT1-3k5tAI9X9se-dCI';
+
+        const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+        let selectedDate;
+        let currentDate = new Date();
+        let currentMonth = currentDate.getMonth();
+        let currentYear = currentDate.getFullYear();
+        let selectedStudents = [];
+        let attendanceData = {};
+        let studentsFetched = false;
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        const calendarEl = document.getElementById('calendar');
+        const monthNameEl = document.getElementById('month-name');
+        const yearEl = document.getElementById('year');
+        const calendarDaysEl = document.querySelector('.calendar-days tbody');
+        const prevMonthButton = document.getElementById('prev-month');
+        const nextMonthButton = document.getElementById('next-month');
+        const studentListEl = document.getElementById('student-list');
+        const noStudentsEl = document.getElementById('no-students');
+        const departmentInput = document.getElementById('department');
+        const semesterInput = document.getElementById('semester');
+        const messageBox = document.getElementById('message-box');
+        const attendanceTable = document.getElementById('attendance-table');
+        const attendanceTableBody = attendanceTable.querySelector('tbody');
+        const fetchStudentsButton = document.getElementById('fetch-students-button');
+        const saveAttendanceButton = document.querySelector('.save-attendance-btn');
+        const dateLabel = document.querySelector('label[for="date"]');
+
+        function showMessage(message, type = 'success') {
+            messageBox.textContent = message;
+            messageBox.className = `fixed top-8 left-1/2 transform -translate-x-1/2 bg-${type === 'success' ? 'green' : 'red'}-100 text-${type === 'success' ? 'green' : 'red'}-700 border border-${type === 'success' ? 'green' : 'red'}-400 px-4 py-2 rounded shadow-md`;
+            messageBox.classList.add('show');
+            setTimeout(() => {
+                messageBox.classList.remove('show');
+            }, 3000);
+        }
+
+        function renderCalendar(month, year) {
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            monthNameEl.textContent = monthNames[month];
+            yearEl.textContent = year;
+            calendarDaysEl.innerHTML = ''; // Clear previous days
+            let dayCount = 1;
+            let row = document.createElement('tr');
+
+            // Add empty cells for the first week to align with the correct day
+            for (let i = 0; i < firstDay; i++) {
+                const cell = document.createElement('td');
+                row.appendChild(cell);
+            }
+
+            for (let i = 1; i <= daysInMonth; i++) {
+                const cell = document.createElement('td');
+                const date = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                cell.textContent = i;
+                if (selectedDate === date) {
+                    cell.classList.add('selected');
+                }
+                cell.addEventListener('click', () => {
+                    selectedDate = date;
+                    const selectedCells = calendarDaysEl.querySelectorAll('td.selected');
+                    selectedCells.forEach(c => c.classList.remove('selected'));
+                    cell.classList.add('selected');
+                    if (studentsFetched) {
+                        studentListEl.style.display = 'block';
+                        attendanceTable.style.display = 'table';
+                        saveAttendanceButton.style.display = 'block';
+                        updateAttendanceTable();
+                    }
+                });
+                row.appendChild(cell);
+                if ((i + firstDay) % 7 === 0 || i === daysInMonth) {
+                    calendarDaysEl.appendChild(row);
+                    row = document.createElement('tr');
+                }
+            }
+
+            // Disable dates in the past
+            const today = new Date();
+            const currentRenderedMonth = new Date(year, month, 1);
+            calendarDaysEl.querySelectorAll('td').forEach(cell => {
+                if (cell.textContent) {
+                    const cellDate = new Date(year, month, parseInt(cell.textContent));
+                    if (currentRenderedMonth.toDateString() === today.toDateString() && cellDate.getDate() < today.getDate()) {
+                        cell.classList.add('disabled');
+                        cell.style.cursor = 'not-allowed';
+                        cell.removeEventListener('click', () => { });
+                    } else if (currentRenderedMonth < today.getFullYear() || (currentRenderedMonth.getFullYear() === today.getFullYear() && currentRenderedMonth.getMonth() < today.getMonth())) {
+                        cell.classList.add('disabled');
+                        cell.style.cursor = 'not-allowed';
+                        cell.removeEventListener('click', () => { });
+                    }
+                }
+            });
+        }
+
+        function markAttendance(studentId, status) {
+            attendanceData[studentId] = status;
+        }
+
+        async function fetchStudents() {
+            const department = departmentInput.value.trim().toUpperCase();
+            const semester = semesterInput.value.trim();
+
+            if (!department || !semester) {
+                showMessage('Please enter both department and semester.', 'error');
+                return;
+            }
+
+            studentListEl.style.display = 'none';
+            attendanceTable.style.display = 'none';
+            noStudentsEl.style.display = 'none';
+            attendanceTableBody.innerHTML = '';
+            selectedStudents = [];
+            attendanceData = {};
+            studentsFetched = false;
+
+            const { data, error } = await supabaseClient
+                .from('students_data')
+                .select('id, name, enrollment')
+                .eq('department', department)
+                .eq('semester', semester);
+
+            if (error) {
+                showMessage(`Error fetching students: ${error.message}`, 'error');
+                console.error("Error fetching students:", error);
+                return;
+            }
+
+            if (data && data.length > 0) {
+                selectedStudents = data;
+                studentsFetched = true;
+                noStudentsEl.style.display = 'none';
+                studentListEl.style.display = 'block';
+                attendanceTable.style.display = 'table';
+                saveAttendanceButton.style.display = 'none';
+                dateLabel.style.display = 'block';
+                calendarEl.style.display = 'block';
+                renderCalendar(currentMonth, currentYear);
+                updateAttendanceTable();
+
+            } else {
+                noStudentsEl.style.display = 'block';
+                studentListEl.style.display = 'none';
+                attendanceTable.style.display = 'none';
+                saveAttendanceButton.style.display = 'none';
+                showMessage('No students found for the selected department and semester.', 'error');
+            }
+        }
+
+        function handleRadioChange(radio, studentId) {
+            if (selectedDate) {
+                markAttendance(studentId, radio.value);
+            } else {
+                radio.checked = false;
+                const noneRadio = document.querySelector(`input[name="attendance-${studentId}"][value="N"]`);
+                if (noneRadio) {
+                    noneRadio.checked = true;
+                }
+                showMessage('Please select a date first.', 'error');
+            }
+        }
+
+        function updateAttendanceTable() {
+            attendanceTableBody.innerHTML = '';
+            if (selectedStudents.length > 0) {
+                selectedStudents.forEach(student => {
+                    const status = attendanceData[student.id] || 'N';
+                    attendanceTableBody.innerHTML += `
+                    <tr>
+                        <td class="student-name">${student.name}</td>
+                        <td>${student.enrollment}</td>
+                        <td>
+                            <input type="radio" name="attendance-${student.id}" value="P" onchange="handleRadioChange(this, ${student.id})" ${status === 'P' ? 'checked' : ''}> Present
+                            <input type="radio" name="attendance-${student.id}" value="A" onchange="handleRadioChange(this, ${student.id})" ${status === 'A' ? 'checked' : ''}> Absent
+                            <input type="radio" name="attendance-${student.id}" value="N" onchange="handleRadioChange(this, ${student.id})" ${status === 'N' ? 'checked' : ''} checked> None
+                        </td>
+                    </tr>
+                    `;
+                });
+                saveAttendanceButton.style.display = selectedDate ? 'block' : 'none';
+            }
+        }
+
+        async function saveAttendance() {
+            if (!selectedDate) {
+                showMessage('Please select a date.', 'error');
+                return;
+            }
+
+            if (Object.keys(attendanceData).length !== selectedStudents.length) {
+                showMessage('Please mark attendance for all students.', 'error');
+                return;
+            }
+
+            const date = selectedDate;
+
+            try {
+                for (const student of selectedStudents) {
+                    const status = attendanceData[student.id];
+                    if (status) {
+                        const attendanceEntry = {};
+                        attendanceEntry[date] = status;
+
+                        const { data, error } = await supabaseClient
+                            .from('students_data')
+                            .select('date_status_pairs')
+                            .eq('id', student.id)
+                            .single(); // Use .single() to get a single object
+
+                        if (error && error.code !== 'PGRST116') { // PGRST116 means no row found
+                            showMessage(`Error fetching existing attendance for ${student.name}: ${error.message}`, 'error');
+                            console.error("Error fetching existing attendance:", error);
+                            return;
+                        }
+
+                        let existingAttendance = data ? data.date_status_pairs || {} : {};
+                        existingAttendance[date] = status;
+
+                        const { error: updateError } = await supabaseClient
+                            .from('students_data')
+                            .update({ date_status_pairs: existingAttendance })
+                            .eq('id', student.id);
+
+                        if (updateError) {
+                            showMessage(`Error saving attendance for ${student.name}: ${updateError.message}`, 'error');
+                            console.error("Error saving attendance:", updateError);
+                            return;
+                        }
+                    }
+                }
+
+                showMessage('Attendance saved successfully!');
+                attendanceData = {};
+                selectedDate = null;
+                renderCalendar(currentMonth, currentYear);
+                attendanceTableBody.innerHTML = '';
+                studentListEl.style.display = 'none';
+                attendanceTable.style.display = 'none';
+                saveAttendanceButton.style.display = 'none';
+
+            } catch (error) {
+                showMessage(`Unexpected error: ${error.message}`, 'error');
+                console.error("Error saving attendance:", error);
+            }
+        }
+
+        prevMonthButton.addEventListener('click', () => {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            renderCalendar(currentMonth, currentYear);
+        });
+
+        nextMonthButton.addEventListener('click', () => {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            renderCalendar(currentMonth, currentYear);
+        });
+
+        renderCalendar(currentMonth, currentYear);
+    </script>
+</body>
+
+</html>

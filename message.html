@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delayed Students</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.0.0/dist/umd/supabase.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <style>
+        /* Your existing CSS */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.4);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 50%;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            cursor: pointer;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            /* for rounded corners on the border */
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f0f0f0;
+        }
+
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin: 5px;
+        }
+
+        button:hover {
+            background-color: #367c39;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            resize: vertical;
+        }
+
+        #filter-container {
+            margin-bottom: 10px;
+        }
+
+        #filter-input {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 200px;
+        }
+    </style>
+</head>
+
+<body>
+    <div>
+        <h1>Delayed Students</h1>
+        <div id="filter-container">
+            <label for="filter-input">Filter by Department:</label>
+            <input type="text" id="filter-input" onkeyup="filterTable()">
+            <button onclick="goback()">Back</button>
+        </div>
+        <div id="studentsContainer"></div>
+
+        <div id="individual-message-modal" class="modal">
+            <div class="modal-content">
+                <span class="close-button" onclick="closeIndividualMessageModal()">&times;</span>
+                <h2>Message to <span id="modal-student-name"></span></h2>
+                <textarea id="individual-message-text"></textarea>
+                <button id="send-individual-email">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        function goback() {
+            window.location.href = 'dashboard.html';
+        }
+        function closeIndividualMessageModal() {
+            const individualMessageModal = document.getElementById('individual-message-modal');
+            const individualMessageTextElement = document.getElementById('individual-message-text');
+            individualMessageModal.style.display = 'none';
+            individualMessageTextElement.value = '';
+        }
+
+        let studentsData = [];
+        let studentTable; // To hold the table element
+
+        function filterTable() {
+            const filterValue = document.getElementById("filter-input").value.toUpperCase();
+            const rows = studentTable.getElementsByTagName("tr");
+
+            for (let i = 1; i < rows.length; i++) { // Start from 1 to skip the header row
+                const departmentCell = rows[i].getElementsByTagName("td")[2]; // Department is the 3rd column (index 2)
+                if (departmentCell) {
+                    const departmentText = departmentCell.textContent || departmentCell.innerText;
+                    if (departmentText.toUpperCase().indexOf(filterValue) > -1) {
+                        rows[i].style.display = "";
+                    } else {
+                        rows[i].style.display = "none";
+                    }
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async function () {
+            // Supabase Initialization
+            const supabaseUrl = 'https://varqdvyrqtcjvjfygruy.supabase.co'; // Replace with your Supabase URL
+            const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhcnFkdnlycXRjanZqZnlncnV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzNTg0MDYsImV4cCI6MjA2MDkzNDQwNn0.HpAo6ZAiNIcjq1OSHRHknkv4kT1-3k5tAI9X9se-dCI';
+            const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+            // EmailJS Initialization
+            emailjs.init("e6Y4G5QbExgu1_Btg");
+
+            // DOM Elements
+            const studentsContainer = document.getElementById('studentsContainer');
+            const individualMessageModal = document.getElementById('individual-message-modal');
+            const modalStudentName = document.getElementById('modal-student-name');
+            const individualMessageTextElement = document.getElementById('individual-message-text');
+            const sendIndividualEmailButtonElement = document.getElementById('send-individual-email');
+
+            let currentStudent = null;
+
+            // Fetch and Display Students
+            async function fetchAndDisplayStudents() {
+                try {
+                    const { data, error } = await supabase
+                        .from('students_data')
+                        .select('*');
+
+                    if (error) {
+                        console.error("Error fetching from Supabase:", error);
+                        alert('Error fetching students. Check the console for details.');
+                        studentsContainer.innerHTML = "<p>Error fetching students.</p>";
+                        return;
+                    }
+
+                    studentsData = data;
+                    studentsContainer.innerHTML = "";
+
+                    if (data && data.length > 0) {
+                        studentTable = document.createElement('table'); // Assign the table to the variable
+                        const headerRow = studentTable.insertRow();
+                        const headers = ["Name", "Enrollment No", "Department", "Email", "Actions"];
+
+                        headers.forEach(headerText => {
+                            const headerCell = document.createElement('th');
+                            headerCell.textContent = headerText;
+                            headerRow.appendChild(headerCell);
+                        });
+
+                        data.forEach(student => {
+                            const row = studentTable.insertRow();
+                            const cells = [student.name, student.enrollment, student.department, student.email];
+                            cells.forEach(cellText => {
+                                const cell = row.insertCell();
+                                cell.textContent = cellText;
+                            });
+
+                            const actionsCell = row.insertCell();
+                            const messageButton = document.createElement('button');
+                            messageButton.textContent = "Message";
+                            messageButton.addEventListener('click', () => {
+                                openIndividualMessageModal(student);
+                            });
+                            actionsCell.appendChild(messageButton);
+                        });
+
+                        studentsContainer.appendChild(studentTable);
+                    } else {
+                        studentsContainer.innerHTML = "<p>No students found.</p>";
+                    }
+
+                } catch (error) {
+                    console.error('Error in fetchAndDisplayStudents:', error);
+                    alert('An unexpected error occurred. Check the console for details.');
+                    studentsContainer.innerHTML = "<p>An unexpected error occurred.</p>";
+                }
+            }
+
+            // Individual Message Modal Functions
+            function openIndividualMessageModal(student) {
+                modalStudentName.textContent = student.name;
+                individualMessageModal.style.display = 'block';
+                window.currentStudent = student;
+                individualMessageTextElement.value = '';
+            }
+
+            // Email Sending Function (Generalized)
+            async function sendEmail(templateID, params, isBulk = false) {
+                try {
+                    const result = await emailjs.send("service_u6u3n9q", templateID, params);
+                    console.log("Email sent successfully!", result);
+
+                    if (!isBulk) {
+                        alert("Email sent!");
+                    }
+                    return true;
+                } catch (error) {
+                    console.error("Error sending email:", error);
+                    if (!isBulk) {
+                        alert("Error sending email!");
+                    }
+                    return false;
+                }
+            }
+
+
+            // Individual Email Function
+            sendIndividualEmailButtonElement.addEventListener('click', async () => {
+                const individualMessage = individualMessageTextElement.value;
+                const student = window.currentStudent;
+
+                console.log("Sending individual email to:", student.email);
+
+                const params = {
+                    to_email: student.email,
+                    student_name: student.name,
+                    message: individualMessage,
+                    reply_to: "info@yourdomain.com"
+                };
+
+                const sentSuccessfully = await sendEmail("template_81elyud", params);
+
+                if (sentSuccessfully) {
+                    closeIndividualMessageModal();
+                }
+            });
+
+            fetchAndDisplayStudents();
+        });
+    </script>
+</body>
+
+</html>

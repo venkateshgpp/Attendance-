@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Student Data from Excel</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"></script>
+
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f3f4f6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 600px;
+            margin-bottom: 20px;
+        }
+
+        .title {
+            text-align: center;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .btn {
+            background-color: #3B82F6;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.3s ease;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .upload-btn:hover {
+            background-color: #2563EB;
+        }
+
+        .input-file {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #D1D5DB;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            box-sizing: border-box;
+        }
+
+        .question-mark {
+            color: orangered;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        p {
+            font-family: monospace;
+            font-weight: bold;
+            font-size: large;
+            color: #333;
+        }
+
+        .popup-card {
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            width: 700px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .popup-card img {
+            width: 100%;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .close-btn {
+            background-color: #E5E7EB;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: block;
+            margin: 10px auto 0;
+            border: none;
+            font-size: 16px;
+        }
+
+        /* CSS for Delete Section */
+        .delete-container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 600px;
+            margin-bottom: 20px;
+        }
+
+        .delete-title {
+            text-align: center;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #d32f2f;
+            /* Red color for delete section title */
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .form-group input[type="text"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+
+        .fetch-button {
+            background-color: #5cb85c;
+            /* Green color for fetch */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+            width: 100%;
+            font-weight: bold;
+            margin-top: 1rem;
+        }
+
+        .fetch-button:hover {
+            background-color: #4cae4c;
+        }
+
+        #fetch-status,
+        #delete-status {
+            margin-top: 1rem;
+            text-align: center;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .student-list-container {
+            margin-top: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 1rem;
+        }
+
+        .student-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .student-item input[type="checkbox"] {
+            margin-right: 0.75rem;
+        }
+
+        .delete-button {
+            background-color: #d32f2f;
+            /* Red color for delete button */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+            width: 100%;
+            font-weight: bold;
+            margin-top: 1rem;
+        }
+
+        .delete-button:hover {
+            background-color: #b71c1c;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="popup-card" class="popup-card">
+        <img src="format.png" alt="Student Data Format" />
+        <p>For .XLSX Files Use Same Column Names As Above Image</p>
+        <button class="close-btn" onclick="closePopup()">Close</button>
+    </div>
+
+    <div class="container">
+        <h2 class="title">Upload Student Data from Excel <span class="question-mark" onclick="showPopupCard()">?</span>
+        </h2>
+        <div class="mb-4">
+            <a href="https://varqdvyrqtcjvjfygruy.supabase.co/storage/v1/object/public/excel-formats//student_format.xlsx"
+                download="student_format.xlsx">
+                <h6>Download Format</h6>
+            </a>
+            <label for="excel-file" class="block text-lg mb-2">Choose Excel File</label>
+            <input type="file" id="excel-file" accept=".xlsx" class="input-file" />
+        </div>
+        <button class="btn upload-btn" onclick="uploadStudentData()">Upload Student Data</button>
+        <button class="btn upload-btn" onclick="goback()">Back</button>
+        <div id="upload-status" class="mt-4 text-center font-semibold"></div>
+    </div>
+
+
+
+
+
+
+    <div class="container">
+        <h2>Find Students to Delete</h2>
+        <div class="form-group">
+            <label for="department">Department (Optional):</label>
+            <input type="text" id="department" placeholder="Enter department">
+        </div>
+        <div class="form-group">
+            <label for="semester">Semester (Optional):</label>
+            <input type="text" id="semester" placeholder="Enter semester">
+        </div>
+        <div class="form-group">
+            <label for="name">Name (Optional):</label>
+            <input type="text" id="name" placeholder="Enter student name">
+        </div>
+        <div class="form-group">
+            <label for="enrollment">Enrollment (Optional):</label>
+            <input type="text" id="enrollment" placeholder="Enter enrollment number">
+        </div>
+        <button
+            style="background-color: #5cb85c; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; transition: background-color 0.3s ease; font-weight: bold; margin-top: 1rem;"
+            onclick="fetchStudents()">Fetch Students</button>
+        <div id="fetch-status"></div>
+    </div>
+
+    <div id="student-list-container" class="container" style="display: none;">
+        <h2>Select Students to Delete</h2>
+        <div id="student-list">
+        </div>
+        <button class="delete-button" onclick="deleteSelectedStudents()">Delete Selected Students</button>
+        <div id="delete-status"></div>
+    </div>
+
+    <script>
+        const supabaseUrl = 'https://varqdvyrqtcjvjfygruy.supabase.co'; // Replace with your Supabase URL
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhcnFkdnlycXRjanZqZnlncnV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzNTg0MDYsImV4cCI6MjA2MDkzNDQwNn0.HpAo6ZAiNIcjq1OSHRHknkv4kT1-3k5tAI9X9se-dCI';
+
+        const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+        function goback() {
+            window.location.href = 'dashboard.html';
+        }
+        // Function to show the popup card
+        function showPopupCard() {
+            document.getElementById('popup-card').style.display = 'block';
+        }
+
+        // Function to close the popup card
+        function closePopup() {
+            document.getElementById('popup-card').style.display = 'none';
+        }
+
+        // Upload Student Data Function
+        async function uploadStudentData() {
+            const file = document.getElementById('excel-file').files[0];
+            const uploadStatus = document.getElementById('upload-status');
+
+            if (!file) {
+                alert("Please select an Excel file.");
+                return;
+            }
+
+            uploadStatus.textContent = "Processing file...";
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const data = e.target.result;
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(sheet, { raw: false }); // Ensure formatted data
+
+                let insertedCount = 0;
+                let errorCount = 0;
+                const errors = [];
+
+                for (const row of jsonData) {
+                    const name = row['name'] ? row['name'].trim() : '';
+                    const enrollment = row['enrollment'] ? row['enrollment'].trim() : '';
+                    const email = row['email'] ? row['email'].trim() : '';
+                    const department = row['department'] ? row['department'].trim().toUpperCase() : null; // Assuming "department" is now correct
+                    const phone = row['phone'] ? row['phone'].trim() : '';
+                    const semester = row['semester'] ? row['semester'].trim() : '';
+
+                    const requiredFields = { name, enrollment, email, department, phone, semester };
+                    const missingFields = Object.keys(requiredFields).filter(key => !requiredFields[key]);
+
+                    if (missingFields.length > 0) {
+                        errors.push(`Missing required fields: ${missingFields.join(', ')} - Enrollment: ${enrollment}`);
+                        errorCount++;
+                        continue;
+                    }
+
+                    const { data: existingRecords, error: fetchError } = await supabaseClient
+                        .from('students_data')
+                        .select('*')
+                        .or(`enrollment.eq.${enrollment},email.eq.${email}`);
+
+                    if (fetchError) {
+                        errors.push(`Error fetching data for enrollment ${enrollment}: ${fetchError.message}`);
+                        errorCount++;
+                        continue;
+                    }
+
+                    if (existingRecords.length > 0) {
+                        console.log(`Student with enrollment ${enrollment} or email ${email} already exists.`);
+                    } else {
+                        const { error: insertError } = await supabaseClient
+                            .from('students_data')
+                            .insert([{
+                                name: name,
+                                enrollment: enrollment,
+                                email: email,
+                                department: department,
+                                semester: semester,
+                                phone: phone
+                            }]);
+
+                        if (insertError) {
+                            errors.push(`Error inserting data for enrollment ${enrollment}: ${insertError.message}`);
+                            errorCount++;
+                        } else {
+                            insertedCount++;
+                        }
+                    }
+                }
+
+                uploadStatus.textContent = `${insertedCount} new records uploaded. ${errorCount} errors encountered.`;
+                if (errors.length > 0) {
+                    alert("Upload completed with the following errors:\n" + errors.join("\n"));
+                } else if (insertedCount > 0) {
+                    alert(`${insertedCount} new records uploaded successfully!`);
+                } else {
+                    alert("No new records were uploaded.");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+
+        //deleting data
+        const studentListContainer = document.getElementById('student-list-container');
+        const studentListDiv = document.getElementById('student-list');
+        const fetchStatusDiv = document.getElementById('fetch-status');
+        const deleteStatusDiv = document.getElementById('delete-status');
+        let fetchedStudents = [];
+
+        async function fetchStudents() {
+            const department = document.getElementById('department').value.trim().toUpperCase();
+            const semester = document.getElementById('semester').value.trim();
+            const name = document.getElementById('name').value.trim();
+            const enrollment = document.getElementById('enrollment').value.trim();
+
+            fetchStatusDiv.textContent = "Fetching students...";
+            studentListContainer.style.display = 'none';
+            studentListDiv.innerHTML = '';
+            fetchedStudents = [];
+
+            let query = supabaseClient.from('students_data').select('id, name, enrollment, department, semester');
+
+            if (department) {
+                query = query.eq('department', department);
+            }
+            if (semester) {
+                query = query.eq('semester', semester);
+            }
+            if (name) {
+                query = query.ilike('name', `%${name}%`);
+            }
+            if (enrollment) {
+                query = query.eq('enrollment', enrollment);
+            }
+
+            try {
+                const { data, error } = await query;
+
+                if (error) {
+                    console.error("Error fetching students:", error);
+                    fetchStatusDiv.textContent = `Error fetching students: ${error.message}`;
+                } else if (data && data.length > 0) {
+                    fetchedStudents = data;
+                    fetchStatusDiv.textContent = `Found ${data.length} students. Select to delete.`;
+                    studentListDiv.innerHTML = data.map(student => `
+                        <div class="student-item">
+                            <input type="checkbox" value="${student.id}">
+                            <span>${student.name} (${student.enrollment}) - ${student.department}, Sem ${student.semester}</span>
+                        </div>
+                    `).join('');
+                    studentListContainer.style.display = 'block';
+                } else {
+                    fetchStatusDiv.textContent = "No students found matching the criteria.";
+                }
+            } catch (error) {
+                console.error("An unexpected error occurred:", error);
+                fetchStatusDiv.textContent = `An unexpected error occurred: ${error.message}`;
+            }
+        }
+
+        async function deleteSelectedStudents() {
+            const selectedIds = Array.from(studentListDiv.querySelectorAll('input[type="checkbox"]:checked'))
+                .map(checkbox => checkbox.value);
+
+            if (selectedIds.length === 0) {
+                alert("Please select at least one student to delete.");
+                return;
+            }
+
+            const confirmDelete = confirm(`Are you sure you want to delete ${selectedIds.length} students?`);
+            if (!confirmDelete) {
+                deleteStatusDiv.textContent = "Deletion cancelled.";
+                return;
+            }
+
+            deleteStatusDiv.textContent = "Deleting selected students...";
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('students_data')
+                    .delete()
+                    .in('id', selectedIds);
+
+                if (error) {
+                    console.error("Error deleting students:", error);
+                    deleteStatusDiv.textContent = `Error deleting students: ${error.message}`;
+                } else {
+                    deleteStatusDiv.textContent = `Successfully deleted ${data ? data.length : selectedIds.length} student(s).`;
+                    // Optionally, you can refresh the student list after deletion
+                    fetchStudents();
+                }
+            } catch (error) {
+                console.error("An unexpected error occurred:", error);
+                deleteStatusDiv.textContent = `An unexpected error occurred: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+
+</html>

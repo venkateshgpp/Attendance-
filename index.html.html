@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Login</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            /* More modern font */
+            background-image: url('image.png');
+            /* Using the image you provided */
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: #333;
+            /* Default text color */
+        }
+
+        .content-overlay {
+            background: rgba(255, 255, 255, 0.85);
+            /* Less transparent, more solid */
+            padding: 40px;
+            /* Increased padding */
+            border-radius: 16px;
+            /* More rounded corners */
+            max-width: 450px;
+            /* Slightly wider */
+            width: 90%;
+            /* Adjust width for responsiveness */
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+            /* More pronounced shadow */
+            backdrop-filter: blur(10px);
+            /* Add a subtle blur to the background */
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+            /* Faster fade-in */
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+                /* Slide in from top slightly */
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h2 {
+            color: #2c3e50;
+            /* Darker heading color */
+            font-size: 2.5rem;
+            /* Larger heading */
+            font-weight: 700;
+            /* Bold font weight */
+            text-align: center;
+            margin-bottom: 30px;
+            letter-spacing: 0.5px;
+            /* Slight letter spacing */
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+            /* Increased spacing between form elements */
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            /* Semi-bold label */
+            color: #555;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: calc(100% - 20px);
+            /* Account for padding */
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            color: #333;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            outline: none;
+            border-color: #3498db;
+            /* Highlight on focus */
+            box-shadow: 0 0 8px rgba(52, 152, 219, 0.2);
+            /* Subtle focus shadow */
+        }
+
+        button[type="submit"] {
+            width: 100%;
+            padding: 14px 20px;
+            background-color: #27ae60;
+            /* Vibrant green */
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 500;
+            transition: background-color 0.3s ease, transform 0.2s ease-in-out;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            /* Subtle button shadow */
+        }
+
+        button[type="submit"]:hover {
+            background-color: #2ecc71;
+            /* Lighter green on hover */
+            transform: scale(1.02);
+            /* Slight scale up on hover */
+        }
+
+        button[type="submit"]:active {
+            transform: scale(1);
+            /* Reset scale on active */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            /* Smaller shadow on active */
+        }
+
+        .error-message {
+            color: #e74c3c;
+            /* Error red */
+            margin-top: 15px;
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: 400;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .content-overlay {
+                padding: 30px;
+                border-radius: 12px;
+                max-width: 95%;
+            }
+
+            h2 {
+                font-size: 2rem;
+                margin-bottom: 20px;
+            }
+
+            .form-group {
+                margin-bottom: 20px;
+            }
+
+            input[type="text"],
+            input[type="password"] {
+                padding: 10px;
+                font-size: 0.9rem;
+            }
+
+            button[type="submit"] {
+                padding: 12px 18px;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50">
+    <div id="login" class="flex justify-center items-center h-screen fade-in">
+        <div class="content-overlay">
+            <h2 class="text-2xl font-bold text-center mb-6 font-mono text-black">Teacher Login</h2>
+            <form id="login-form">
+                <div class="form-group">
+
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="font-mono">Login</button>
+                <div id="login-error" class="error-message" style="display:none;"></div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+
+        const supabaseUrl = 'https://varqdvyrqtcjvjfygruy.supabase.co'; // Replace with your Supabase URL
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhcnFkdnlycXRjanZqZnlncnV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzNTg0MDYsImV4cCI6MjA2MDkzNDQwNn0.HpAo6ZAiNIcjq1OSHRHknkv4kT1-3k5tAI9X9se-dCI';
+        const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const loginForm = document.getElementById('login-form');
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const loginErrorDiv = document.getElementById('login-error');
+
+            loginForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+
+                const username = usernameInput.value;
+                const password = passwordInput.value;
+
+                const { data: teachers, error } = await supabaseClient
+                    .from('teachers') // Replace 'teachers' with your actual table name
+                    .select('id')
+                    .eq('username', username)
+                    .eq('password', password);
+
+                if (error) {
+                    console.error('Login error:', error);
+                    loginErrorDiv.textContent = 'An error occurred during login.';
+                    loginErrorDiv.style.display = 'block';
+                } else if (teachers && teachers.length > 0) {
+                    console.log('Login successful. Teacher ID:', teachers[0].id);
+                    localStorage.setItem('teacherId', teachers[0].id);
+                    window.location.href = 'dashboard.html';
+                } else {
+                    loginErrorDiv.textContent = 'Invalid username or password.';
+                    loginErrorDiv.style.display = 'block';
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Attendance Percentage</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f6f8;
+            color: #333;
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            min-height: 100vh;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            width: 100%;
+            max-width: 960px;
+            margin-top: 3rem;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        .back-button {
+            background-color: #dc2626;
+            color: #fff;
+            font-weight: 500;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            text-decoration: none;
+            transition: background-color 0.15s ease-in-out;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+        }
+
+        .back-button:hover {
+            background-color: #b91c1c;
+        }
+
+        .filter-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #4a5568;
+            margin-bottom: 0.5rem;
+        }
+
+        .filter-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            font-size: 1rem;
+            color: #374151;
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+
+        .filter-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+        }
+
+        .fetch-button {
+            background-color: #667eea;
+            color: #fff;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+        }
+
+        .fetch-button:hover {
+            background-color: #5a67d8;
+        }
+
+        .fetch-button:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+        }
+
+        #attendance-percentage-display {
+            /* Styles for the display area */
+        }
+
+        #percentage-list {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        #percentage-list li {
+            margin-bottom: 0.5rem;
+        }
+
+        #attendance-chart-container {
+            width: 200px;
+            height: 200px;
+            margin-top: 1rem;
+        }
+
+        .chart-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100">
+    <div class="container max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6 mt-10">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-semibold text-gray-800">View Attendance Percentage</h1>
+            <button class="back-button" onclick="goback()">Back</button>
+        </div>
+        <div class="mb-4">
+            <label for="filter-department" class="filter-label">Filter by Department:</label>
+            <input type="text" id="filter-department" class="filter-input" placeholder="Enter Department (e.g., CSE)">
+        </div>
+        <div class="mb-4">
+            <label for="filter-semester" class="filter-label">Filter by Semester:</label>
+            <input type="text" id="filter-semester" class="filter-input" placeholder="Enter Semester (e.g., 3)">
+        </div>
+        <button id="fetch-filtered-students-button" class="fetch-button" onclick="fetchFilteredStudents()">Fetch
+            Students</button>
+
+        <div id="attendance-percentage-display" class="mt-6 p-4 bg-gray-100 rounded-md shadow-sm">
+            <h2 class="text-lg font-semibold text-gray-800 mb-2">Attendance Percentage</h2>
+            <ul id="percentage-list">
+            </ul>
+            <div id="chart-container" class="chart-container" style="display: none;">
+                <h3 class="font-semibold text-center mb-2">Attendance Summary</h3>
+                <canvas id="attendance-chart-container"></canvas>
+            </div>
+        </div>
+        <div id="message-box"
+            class="fixed top-8 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded shadow-md text-white font-semibold"
+            style="display: none;"></div>
+    </div>
+    <script>
+        const supabaseUrl = 'https://varqdvyrqtcjvjfygruy.supabase.co'; // Replace with your Supabase URL
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhcnFkdnlycXRjanZqZnlncnV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzNTg0MDYsImV4cCI6MjA2MDkzNDQwNn0.HpAo6ZAiNIcjq1OSHRHknkv4kT1-3k5tAI9X9se-dCI';
+
+        const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+        const filterDepartmentInput = document.getElementById('filter-department');
+        const filterSemesterInput = document.getElementById('filter-semester');
+        const fetchFilteredStudentsButton = document.getElementById('fetch-filtered-students-button');
+        const attendancePercentageDiv = document.getElementById('attendance-percentage-display');
+        const percentageList = document.getElementById('percentage-list');
+        const messageBox = document.getElementById('message-box');
+        const chartContainer = document.getElementById('chart-container');
+        const attendanceChartCanvas = document.getElementById('attendance-chart-container').getContext('2d');
+        let attendanceChart; // To hold the chart instance
+
+        function goback() {
+            window.location.href = 'dashboard.html';
+        }
+
+        function showMessage(message, type = 'success') {
+            messageBox.textContent = message;
+            messageBox.className = `fixed top-8 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded shadow-md text-white font-semibold bg-${type === 'success' ? 'green' : 'red'}-500`;
+            messageBox.style.display = 'block';
+            setTimeout(() => {
+                messageBox.style.display = 'none';
+            }, 3000);
+        }
+
+        async function fetchFilteredStudents() {
+            const department = filterDepartmentInput.value.trim().toUpperCase();
+            const semester = filterSemesterInput.value.trim();
+
+            attendancePercentageDiv.style.display = 'none';
+            percentageList.innerHTML = '';
+            chartContainer.style.display = 'none';
+
+            if (!department || !semester) {
+                showMessage('Please enter both department and semester to filter.', 'error');
+                return;
+            }
+
+            const { data, error } = await supabaseClient
+                .from('students_data')
+                .select('name, enrollment, date_status_pairs')
+                .eq('department', department)
+                .eq('semester', semester);
+
+            if (error) {
+                showMessage(`Error fetching students: ${error.message}`, 'error');
+                console.error("Error fetching students:", error);
+                return;
+            }
+
+            if (data && data.length > 0) {
+                calculateAndDisplayAttendancePercentage(data);
+            } else {
+                showMessage('No students found with the specified filters.', 'info');
+            }
+        }
+
+        function calculateAndDisplayAttendancePercentage(students) {
+            if (!students || students.length === 0) {
+                attendancePercentageDiv.style.display = 'none';
+                chartContainer.style.display = 'none';
+                return;
+            }
+
+            const allDates = new Set();
+            students.forEach(student => {
+                if (student.date_status_pairs) {
+                    Object.keys(student.date_status_pairs).forEach(date => allDates.add(date));
+                }
+            });
+            const totalPossibleDays = allDates.size;
+            percentageList.innerHTML = ''; // Clear previous percentages
+
+            let lowAttendanceCount = 0;
+            let goodAttendanceCount = 0;
+
+            students.forEach(student => {
+                let presentDays = 0;
+                if (student.date_status_pairs) {
+                    Object.values(student.date_status_pairs).forEach(status => {
+                        if (status.toUpperCase() === 'P') {
+                            presentDays++;
+                        }
+                    });
+                }
+
+                const attendancePercentage = totalPossibleDays > 0 ? (presentDays / totalPossibleDays) * 100 : 0;
+                const listItem = document.createElement('li');
+                listItem.textContent = `${student.name} (Enrollment: ${student.enrollment}): ${attendancePercentage.toFixed(2)}%`;
+
+                if (attendancePercentage < 75) {
+                    listItem.style.color = 'red';
+                    lowAttendanceCount++;
+                } else {
+                    listItem.style.color = 'green';
+                    goodAttendanceCount++;
+                }
+                percentageList.appendChild(listItem);
+            });
+
+            attendancePercentageDiv.style.display = 'block';
+            renderAttendanceBarChart(lowAttendanceCount, goodAttendanceCount);
+            chartContainer.style.display = 'flex';
+        }
+
+        function renderAttendanceBarChart(lowCount, goodCount) {
+            if (attendanceChart) {
+                attendanceChart.destroy(); // Destroy existing chart if any
+            }
+
+            attendanceChart = new Chart(attendanceChartCanvas, {
+                type: 'bar',
+                data: {
+                    labels: ['Below 75%', '75% and Above'],
+                    datasets: [{
+                        label: 'Number of Students',
+                        data: [lowCount, goodCount],
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.7)', // Red for below 75%
+                            'rgba(75, 192, 192, 0.7)'  // Green for 75% and above
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(75, 192, 192, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Students'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Attendance Category'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false // Hide the legend
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    return `Number of Students: ${context.parsed.y}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>
